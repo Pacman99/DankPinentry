@@ -1,0 +1,14 @@
+{
+    "id": "dankPinentry",
+    "name": "DankPinentry",
+    "description": "GPG/SSH passphrase entry with native DMS modal",
+    "version": "0.1.0",
+    "author": "Parthiv Seetharaman",
+    "type": "daemon",
+    "capabilities": ["pinentry", "authentication"],
+    "component": "./PinentryDaemon.qml",
+    "icon": "vpn_key",
+    "permissions": [
+        "process"
+    ]
+}
