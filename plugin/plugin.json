@@ -5,7 +5,7 @@
     "version": "0.1.0",
     "author": "Parthiv Seetharaman",
     "type": "daemon",
-    "capabilities": ["pinentry", "authentication"],
+    "capabilities": ["authentication", "ipc", "daemon"],
     "component": "./PinentryDaemon.qml",
     "icon": "vpn_key",
     "permissions": [
