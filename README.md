@@ -16,30 +16,9 @@ which the `pinentry-dms` command picks up and prints for the pinentry client.
 
 ## Installation
 
-### Home Manager (NixOS)
+### DMS Plugin
 
-Add the flake input and configure the plugin via the DMS home-manager module:
-
-```nix
-# flake.nix inputs
-dank-pinentry.url = "github:pacman99/DankPinentry";
-```
-
-```nix
-# home-manager configuration
-programs.dank-material-shell.plugins.dankPinentry = {
-  enable = true;
-  src = inputs.dank-pinentry.packages.${system}.dms-plugin;
-};
-```
-
-### Manual
-
-Symlink or copy the `plugin/` directory into your DMS plugins folder:
-
-```bash
-ln -s /path/to/DankPinentry/plugin ~/.config/DankMaterialShell/plugins/dankPinentry
-```
+Follow instructions in [dms-plugin-registry](https://github.com/AvengeMedia/dms-plugin-registry) (id is `dankPinentry`.
 
 Then enable the plugin in DMS settings.
 
