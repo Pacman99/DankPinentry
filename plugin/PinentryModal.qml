@@ -63,7 +63,6 @@ FloatingWindow {
             }
             if (repeat && passwordInput !== repeatInput) {
                 repeatMismatch = true;
-                repeatInput = "";
                 Qt.callLater(() => repeatField.forceActiveFocus());
                 return;
             }
@@ -111,9 +110,15 @@ FloatingWindow {
             btns[idx + 1].forceActiveFocus();
             return true;
         }
-        if (up && isGetPin && idx >= 0) {
-            (showRepeatField ? repeatField : passwordField).forceActiveFocus();
-            return true;
+        if (up) {
+            if (current === repeatField) {
+                passwordField.forceActiveFocus();
+                return true;
+            }
+            if (isGetPin && idx >= 0) {
+                (showRepeatField ? repeatField : passwordField).forceActiveFocus();
+                return true;
+            }
         }
         if (down) {
             if (current === passwordField && showRepeatField) {
@@ -130,7 +135,7 @@ FloatingWindow {
 
     objectName: "pinentryModal"
     title: "Pinentry"
-    minimumSize: Qt.size(460, isGetPin ? (repeat && showRepeatField ? 260 : 200) : 120)
+    minimumSize: Qt.size(460, Math.ceil(mainColumn.implicitHeight + Theme.spacingM * 2))
     maximumSize: minimumSize
     color: Theme.surfaceContainer
     visible: false
@@ -218,6 +223,16 @@ FloatingWindow {
                 }
             }
 
+            // Error / mismatch banner — kept near the top so users see it before re-typing.
+            StyledText {
+                text: repeatMismatch ? "Passphrases do not match" : root.errorText
+                font.pixelSize: Theme.fontSizeSmall
+                color: Theme.error
+                width: parent.width
+                wrapMode: Text.Wrap
+                visible: text !== ""
+            }
+
             // Prompt label
             StyledText {
                 text: root.prompt
@@ -253,6 +268,7 @@ FloatingWindow {
                     echoMode: passwordVisible ? TextInput.Normal : TextInput.Password
                     placeholderText: ""
                     backgroundColor: "transparent"
+                    ignoreUpDownKeys: true
                     onTextEdited: passwordInput = text
                     onAccepted: submit()
                     Keys.onPressed: event => {
@@ -288,6 +304,7 @@ FloatingWindow {
                     echoMode: passwordVisible ? TextInput.Normal : TextInput.Password
                     placeholderText: "Repeat passphrase"
                     backgroundColor: "transparent"
+                    ignoreUpDownKeys: true
                     onTextEdited: {
                         repeatInput = text;
                         repeatMismatch = false;
@@ -298,15 +315,6 @@ FloatingWindow {
                             event.accepted = true;
                     }
                 }
-            }
-
-            // Error text
-            StyledText {
-                text: repeatMismatch ? "Passphrases do not match" : root.errorText
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.error
-                width: parent.width
-                visible: text !== ""
             }
 
             // Button row
