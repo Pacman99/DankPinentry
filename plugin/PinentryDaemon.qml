@@ -56,6 +56,7 @@ PluginComponent {
         activeModal.confirmed.connect(handleConfirmOK);
         activeModal.cancelled.connect(handleCancel);
         activeModal.rejectedNotOK.connect(handleNotOK);
+        activeModal.timedOut.connect(handleTimeout);
         activeModal.show();
     }
 
@@ -105,6 +106,15 @@ PluginComponent {
 
     function handleNotOK() {
         sendResponse({"type": "notok"});
+        if (activeModal) {
+            activeModal.close();
+            activeModal.destroy();
+            activeModal = null;
+        }
+    }
+
+    function handleTimeout() {
+        sendResponse({"type": "timeout"});
         if (activeModal) {
             activeModal.close();
             activeModal.destroy();

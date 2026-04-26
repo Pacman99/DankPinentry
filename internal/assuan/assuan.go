@@ -151,6 +151,7 @@ func (e Error) wire() uint32 {
 
 // Standard pinentry errors.
 var (
+	ErrTimeout        = Error{Code: 62, Source: SourcePinentry, Message: "Timeout"}
 	ErrCanceled       = Error{Code: 99, Source: SourcePinentry, Message: "Operation cancelled"}
 	ErrNotConfirmed   = Error{Code: 114, Source: SourcePinentry, Message: "Operation not confirmed"}
 	ErrUnknownCommand = Error{Code: 275, Source: SourcePinentry, Message: "Unknown command"}

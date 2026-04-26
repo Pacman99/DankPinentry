@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -13,6 +15,44 @@ import (
 
 	"github.com/pacman99/dms-pinentry/internal/assuan"
 )
+
+var (
+	debug          bool
+	defaultTimeout int
+)
+
+func init() {
+	flag.BoolVar(&debug, "debug", false, "log Assuan I/O to stderr")
+	flag.BoolVar(&debug, "d", false, "log Assuan I/O to stderr (shorthand)")
+	flag.IntVar(&defaultTimeout, "timeout", 0, "default modal timeout in seconds (0 = none)")
+	flag.IntVar(&defaultTimeout, "o", 0, "default modal timeout in seconds (shorthand)")
+}
+
+// prefixWriter prepends `prefix` to each newline-terminated chunk it writes,
+// so debug output is line-aligned even when callers split writes oddly.
+type prefixWriter struct {
+	w        io.Writer
+	prefix   string
+	midLine  bool
+}
+
+func (p *prefixWriter) Write(b []byte) (int, error) {
+	var out []byte
+	for _, c := range b {
+		if !p.midLine {
+			out = append(out, p.prefix...)
+			p.midLine = true
+		}
+		out = append(out, c)
+		if c == '\n' {
+			p.midLine = false
+		}
+	}
+	if _, err := p.w.Write(out); err != nil {
+		return 0, err
+	}
+	return len(b), nil
+}
 
 // Request is sent to DMS via IPC to trigger the modal.
 type Request struct {
@@ -36,18 +76,28 @@ type Response struct {
 }
 
 func main() {
+	flag.Parse()
+
+	var stdout io.Writer = os.Stdout
+	if debug {
+		stdout = io.MultiWriter(os.Stdout, &prefixWriter{w: os.Stderr, prefix: "-> "})
+	}
+
 	reader := assuan.NewReader(os.Stdin)
-	writer := assuan.NewWriter(os.Stdout)
+	writer := assuan.NewWriter(stdout)
 
 	// Initial greeting
-	fmt.Fprintln(os.Stdout, "OK Pleased to meet you")
+	fmt.Fprintln(stdout, "OK Pleased to meet you")
 
-	state := &assuan.State{}
+	state := &assuan.State{Timeout: defaultTimeout}
 
 	for {
 		cmd, err := reader.ReadCommand()
 		if err != nil {
 			return
+		}
+		if debug {
+			fmt.Fprintf(os.Stderr, "<- %s %s\n", cmd.Name, cmd.Param)
 		}
 
 		switch cmd.Name {
@@ -70,7 +120,7 @@ func main() {
 			return
 
 		case "RESET":
-			*state = assuan.State{}
+			*state = assuan.State{Timeout: defaultTimeout}
 			writer.OK("")
 
 		case "NOP":
@@ -109,6 +159,8 @@ func handleGetPin(state *assuan.State, writer *assuan.Writer) {
 		writer.OK("")
 	case "cancel":
 		writer.Error(assuan.ErrCanceled)
+	case "timeout":
+		writer.Error(assuan.ErrTimeout)
 	default:
 		writer.Error(assuan.ErrGeneral.WithMessage("unexpected response"))
 	}
@@ -131,6 +183,8 @@ func handleConfirm(state *assuan.State, writer *assuan.Writer, oneButton bool) {
 		writer.OK("")
 	case "cancel":
 		writer.Error(assuan.ErrCanceled)
+	case "timeout":
+		writer.Error(assuan.ErrTimeout)
 	case "notok":
 		writer.Error(assuan.ErrNotConfirmed)
 	default:
@@ -148,6 +202,8 @@ func handleMessage(state *assuan.State, writer *assuan.Writer) {
 	switch resp.Type {
 	case "ok":
 		writer.OK("")
+	case "timeout":
+		writer.Error(assuan.ErrTimeout)
 	default:
 		writer.Error(assuan.ErrGeneral.WithMessage("unexpected response"))
 	}
@@ -217,12 +273,13 @@ func showModal(modalType string, state *assuan.State) (*Response, error) {
 	// Don't wait for ipc command — it returns immediately
 	go ipcCmd.Wait()
 
-	// Set accept timeout
-	timeout := 60 * time.Second
+	// Buffer past the modal's own timer so Accept only fails if DMS never showed up.
+	const acceptBuffer = 10 * time.Second
+	acceptDeadline := 60 * time.Second
 	if state.Timeout > 0 {
-		timeout = time.Duration(state.Timeout) * time.Second
+		acceptDeadline = time.Duration(state.Timeout)*time.Second + acceptBuffer
 	}
-	listener.(*net.UnixListener).SetDeadline(time.Now().Add(timeout))
+	listener.(*net.UnixListener).SetDeadline(time.Now().Add(acceptDeadline))
 
 	conn, err := listener.Accept()
 	listener.Close() // Minimizes window for a second listener
@@ -231,7 +288,7 @@ func showModal(modalType string, state *assuan.State) (*Response, error) {
 	}
 	defer conn.Close()
 
-	conn.SetReadDeadline(time.Now().Add(timeout))
+	conn.SetReadDeadline(time.Now().Add(acceptDeadline))
 
 	decoder := json.NewDecoder(conn)
 	var resp Response

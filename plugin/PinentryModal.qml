@@ -20,6 +20,7 @@ FloatingWindow {
     signal confirmed()
     signal cancelled()
     signal rejectedNotOK()
+    signal timedOut()
 
     property bool disablePopupTransparency: true
     property string passwordInput: ""
@@ -150,7 +151,7 @@ FloatingWindow {
         id: timeoutTimer
         interval: root.timeout > 0 ? root.timeout * 1000 : 60000
         repeat: false
-        onTriggered: cancel()
+        onTriggered: timedOut()
     }
 
     FocusScope {
