@@ -50,7 +50,7 @@ FloatingWindow {
         if (isGetPin)
             passwordField.forceActiveFocus();
         else
-            contentFocusScope.forceActiveFocus();
+            okButton.forceActiveFocus();
     }
 
     function submit() {
@@ -76,9 +76,60 @@ FloatingWindow {
         cancelled();
     }
 
+    function focusableButtons() {
+        const list = [];
+        if (isConfirm && notOkLabel !== "")
+            list.push(notOkButton);
+        if (!isMessage)
+            list.push(cancelButton);
+        list.push(okButton);
+        return list;
+    }
+
+    // Returns true if event was a navigation key and was handled.
+    // vertOnly limits handling to up/down (used inside text fields so left/right
+    // don't fight cursor movement).
+    function handleNav(event, current, vertOnly) {
+        const k = event.key;
+        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
+        const left  = !vertOnly && (k === Qt.Key_Left  || (ctrl && k === Qt.Key_H));
+        const right = !vertOnly && (k === Qt.Key_Right || (ctrl && k === Qt.Key_L));
+        const up    = k === Qt.Key_Up   || (ctrl && k === Qt.Key_K);
+        const down  = k === Qt.Key_Down || (ctrl && k === Qt.Key_J);
+        if (!(left || right || up || down))
+            return false;
+
+        const btns = focusableButtons();
+        const idx = btns.indexOf(current);
+
+        if (left && idx > 0) {
+            btns[idx - 1].forceActiveFocus();
+            return true;
+        }
+        if (right && idx >= 0 && idx < btns.length - 1) {
+            btns[idx + 1].forceActiveFocus();
+            return true;
+        }
+        if (up && isGetPin && idx >= 0) {
+            (showRepeatField ? repeatField : passwordField).forceActiveFocus();
+            return true;
+        }
+        if (down) {
+            if (current === passwordField && showRepeatField) {
+                repeatField.forceActiveFocus();
+                return true;
+            }
+            if (current === passwordField || current === repeatField) {
+                okButton.forceActiveFocus();
+                return true;
+            }
+        }
+        return false;
+    }
+
     objectName: "pinentryModal"
     title: "Pinentry"
-    minimumSize: Qt.size(460, isGetPin ? (repeat && showRepeatField ? 260 : 200) : 150)
+    minimumSize: Qt.size(460, isGetPin ? (repeat && showRepeatField ? 260 : 200) : 120)
     maximumSize: minimumSize
     color: Theme.surfaceContainer
     visible: false
@@ -203,6 +254,10 @@ FloatingWindow {
                     backgroundColor: "transparent"
                     onTextEdited: passwordInput = text
                     onAccepted: submit()
+                    Keys.onPressed: event => {
+                        if (handleNav(event, passwordField, true))
+                            event.accepted = true;
+                    }
                 }
             }
 
@@ -237,6 +292,10 @@ FloatingWindow {
                         repeatMismatch = false;
                     }
                     onAccepted: submit()
+                    Keys.onPressed: event => {
+                        if (handleNav(event, repeatField, true))
+                            event.accepted = true;
+                    }
                 }
             }
 
@@ -261,13 +320,22 @@ FloatingWindow {
 
                     // Not OK button (for 3-button confirm)
                     Rectangle {
+                        id: notOkButton
                         width: Math.max(70, notOkText.contentWidth + Theme.spacingM * 2)
                         height: 36
                         radius: Theme.cornerRadius
                         color: notOkArea.containsMouse ? Theme.surfaceTextHover : "transparent"
-                        border.color: Theme.surfaceVariantAlpha
-                        border.width: 1
+                        border.color: activeFocus ? Theme.surfaceText : Theme.surfaceVariantAlpha
+                        border.width: activeFocus ? 2 : 1
                         visible: isConfirm && root.notOkLabel !== ""
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: root.rejectedNotOK()
+                        Keys.onEnterPressed: root.rejectedNotOK()
+                        Keys.onSpacePressed: root.rejectedNotOK()
+                        Keys.onPressed: event => {
+                            if (handleNav(event, notOkButton, false))
+                                event.accepted = true;
+                        }
 
                         StyledText {
                             id: notOkText
@@ -289,13 +357,23 @@ FloatingWindow {
 
                     // Cancel button
                     Rectangle {
+                        id: cancelButton
                         width: Math.max(70, cancelText.contentWidth + Theme.spacingM * 2)
                         height: 36
                         radius: Theme.cornerRadius
                         color: cancelArea.containsMouse ? Theme.surfaceTextHover : "transparent"
-                        border.color: Theme.surfaceVariantAlpha
-                        border.width: 1
+                        border.color: activeFocus ? Theme.surfaceText : Theme.surfaceVariantAlpha
+                        border.width: activeFocus ? 2 : 1
                         visible: !isMessage
+                        activeFocusOnTab: true
+
+                        Keys.onReturnPressed: cancel()
+                        Keys.onEnterPressed: cancel()
+                        Keys.onSpacePressed: cancel()
+                        Keys.onPressed: event => {
+                            if (handleNav(event, cancelButton, false))
+                                event.accepted = true;
+                        }
 
                         StyledText {
                             id: cancelText
@@ -317,10 +395,21 @@ FloatingWindow {
 
                     // OK / Submit button
                     Rectangle {
+                        id: okButton
                         width: Math.max(80, okText.contentWidth + Theme.spacingM * 2)
                         height: 36
                         radius: Theme.cornerRadius
                         color: okArea.containsMouse ? Qt.darker(Theme.primary, 1.1) : Theme.primary
+                        activeFocusOnTab: true
+                        border.color: activeFocus ? Theme.surfaceText : "transparent"
+                        border.width: activeFocus ? 2 : 0
+                        Keys.onReturnPressed: submit()
+                        Keys.onEnterPressed: submit()
+                        Keys.onSpacePressed: submit()
+                        Keys.onPressed: event => {
+                            if (handleNav(event, okButton, false))
+                                event.accepted = true;
+                        }
 
                         StyledText {
                             id: okText
