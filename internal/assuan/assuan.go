@@ -84,9 +84,15 @@ func (w *Writer) OK(msg string) error {
 	return err
 }
 
-// Error sends an ERR response.
-func (w *Writer) Error(code int, msg string) error {
-	_, err := fmt.Fprintf(w.w, "ERR %d %s\n", code, msg)
+// Error sends an ERR response. The wire format is `ERR <num> <msg> <Source>`,
+// matching what libassuan emits from canonical pinentry implementations.
+func (w *Writer) Error(e Error) error {
+	src := e.Source.Name()
+	if src != "" {
+		_, err := fmt.Fprintf(w.w, "ERR %d %s <%s>\n", e.wire(), e.Message, src)
+		return err
+	}
+	_, err := fmt.Fprintf(w.w, "ERR %d %s\n", e.wire(), e.Message)
 	return err
 }
 
@@ -103,12 +109,52 @@ func (w *Writer) Comment(msg string) error {
 	return err
 }
 
-// Standard error codes used by pinentry.
+// Source identifies which component originated an error, matching
+// libgpg-error's GPG_ERR_SOURCE_* values.
+type Source uint8
+
 const (
-	ErrCanceled    = 83886179 // GPG_ERR_CANCELED
-	ErrNotConfirmed = 83886194 // GPG_ERR_NOT_CONFIRMED
-	ErrASS_UNKNOWN_CMD = 83886381 // GPG_ERR_ASS_UNKNOWN_CMD
-	ErrGeneral     = 83886129 // GPG_ERR_GENERAL
+	SourceUnspecified Source = 0
+	SourcePinentry    Source = 5
+)
+
+// Name returns the human-readable source name appended to ERR lines.
+func (s Source) Name() string {
+	switch s {
+	case SourcePinentry:
+		return "Pinentry"
+	}
+	return ""
+}
+
+// Error represents a GPG error. Code/Source mirror libgpg-error fields;
+// Message is the human-readable text sent on the wire.
+type Error struct {
+	Code    uint16
+	Source  Source
+	Message string
+}
+
+// Error implements the error interface.
+func (e Error) Error() string { return e.Message }
+
+// WithMessage returns a copy of e with Message replaced.
+func (e Error) WithMessage(msg string) Error {
+	e.Message = msg
+	return e
+}
+
+// wire returns the packed integer libgpg-error uses on the protocol.
+func (e Error) wire() uint32 {
+	return uint32(e.Source)<<24 | uint32(e.Code)
+}
+
+// Standard pinentry errors.
+var (
+	ErrCanceled       = Error{Code: 99, Source: SourcePinentry, Message: "Operation cancelled"}
+	ErrNotConfirmed   = Error{Code: 114, Source: SourcePinentry, Message: "Operation not confirmed"}
+	ErrUnknownCommand = Error{Code: 275, Source: SourcePinentry, Message: "Unknown command"}
+	ErrGeneral        = Error{Code: 49, Source: SourcePinentry, Message: "General error"}
 )
 
 // PercentDecode decodes Assuan percent-encoded strings.

@@ -99,7 +99,7 @@ func socketPath() string {
 func handleGetPin(state *assuan.State, writer *assuan.Writer) {
 	resp, err := showModal("getpin", state)
 	if err != nil {
-		writer.Error(assuan.ErrGeneral, err.Error())
+		writer.Error(assuan.ErrGeneral.WithMessage(err.Error()))
 		return
 	}
 
@@ -108,9 +108,9 @@ func handleGetPin(state *assuan.State, writer *assuan.Writer) {
 		writer.Data(resp.Value)
 		writer.OK("")
 	case "cancel":
-		writer.Error(assuan.ErrCanceled, "Operation cancelled")
+		writer.Error(assuan.ErrCanceled)
 	default:
-		writer.Error(assuan.ErrGeneral, "unexpected response")
+		writer.Error(assuan.ErrGeneral.WithMessage("unexpected response"))
 	}
 }
 
@@ -122,7 +122,7 @@ func handleConfirm(state *assuan.State, writer *assuan.Writer, oneButton bool) {
 
 	resp, err := showModal(modalType, state)
 	if err != nil {
-		writer.Error(assuan.ErrGeneral, err.Error())
+		writer.Error(assuan.ErrGeneral.WithMessage(err.Error()))
 		return
 	}
 
@@ -130,18 +130,18 @@ func handleConfirm(state *assuan.State, writer *assuan.Writer, oneButton bool) {
 	case "ok":
 		writer.OK("")
 	case "cancel":
-		writer.Error(assuan.ErrNotConfirmed, "Not confirmed")
+		writer.Error(assuan.ErrCanceled)
 	case "notok":
-		writer.Error(assuan.ErrNotConfirmed, "Not confirmed")
+		writer.Error(assuan.ErrNotConfirmed)
 	default:
-		writer.Error(assuan.ErrGeneral, "unexpected response")
+		writer.Error(assuan.ErrGeneral.WithMessage("unexpected response"))
 	}
 }
 
 func handleMessage(state *assuan.State, writer *assuan.Writer) {
 	resp, err := showModal("message", state)
 	if err != nil {
-		writer.Error(assuan.ErrGeneral, err.Error())
+		writer.Error(assuan.ErrGeneral.WithMessage(err.Error()))
 		return
 	}
 
@@ -149,7 +149,7 @@ func handleMessage(state *assuan.State, writer *assuan.Writer) {
 	case "ok":
 		writer.OK("")
 	default:
-		writer.Error(assuan.ErrGeneral, "unexpected response")
+		writer.Error(assuan.ErrGeneral.WithMessage("unexpected response"))
 	}
 }
 
