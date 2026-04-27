@@ -231,6 +231,7 @@ FloatingWindow {
                 width: parent.width
                 wrapMode: Text.Wrap
                 visible: text !== ""
+                height: visible ? implicitHeight : 0
             }
 
             // Prompt label
@@ -240,12 +241,13 @@ FloatingWindow {
                 color: Theme.surfaceText
                 width: parent.width
                 visible: text !== "" && isGetPin
+                height: visible ? implicitHeight : 0
             }
 
             // Password input
             Rectangle {
                 width: parent.width
-                height: inputFieldHeight
+                height: visible ? inputFieldHeight : 0
                 radius: Theme.cornerRadius
                 color: Theme.surfaceHover
                 border.color: passwordField.activeFocus ? Theme.primary : Theme.outlineStrong
@@ -281,7 +283,7 @@ FloatingWindow {
             // Repeat password input
             Rectangle {
                 width: parent.width
-                height: inputFieldHeight
+                height: visible ? inputFieldHeight : 0
                 radius: Theme.cornerRadius
                 color: Theme.surfaceHover
                 border.color: repeatField.activeFocus ? Theme.primary : Theme.outlineStrong
