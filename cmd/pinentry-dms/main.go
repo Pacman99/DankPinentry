@@ -26,6 +26,24 @@ func init() {
 	flag.BoolVar(&debug, "d", false, "log Assuan I/O to stderr (shorthand)")
 	flag.IntVar(&defaultTimeout, "timeout", 0, "default modal timeout in seconds (0 = none)")
 	flag.IntVar(&defaultTimeout, "o", 0, "default modal timeout in seconds (shorthand)")
+
+	// Unused standard pinentry flags accepted for client compatibility
+	const compat = "accepted for pinentry compatibility; ignored"
+	var (
+		ignoredS string
+		ignoredI int
+		ignoredB bool
+	)
+	for _, n := range []string{"display", "D", "ttyname", "T", "ttytype", "N",
+		"lc-ctype", "C", "lc-messages", "M", "colors", "xauthority"} {
+		flag.StringVar(&ignoredS, n, "", compat)
+	}
+	for _, n := range []string{"parent-wid", "W"} {
+		flag.IntVar(&ignoredI, n, 0, compat)
+	}
+	for _, n := range []string{"no-global-grab", "g"} {
+		flag.BoolVar(&ignoredB, n, false, compat)
+	}
 }
 
 // prefixWriter prepends `prefix` to each newline-terminated chunk it writes,
